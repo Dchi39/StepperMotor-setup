@@ -1,0 +1,76 @@
+#include <Arduino.h>
+#include <TMC5160.h>
+#include <SPI.h>
+
+#define EN_PIN 6
+#define PIN_CS 10
+#define PIN_MOSI 11
+#define PIN_MISO 13
+#define PIN_SCK 12
+// #define R_SENSE 0.075f
+// #define R_SENSE 0.022f
+
+TMC5160_SPI motor(PIN_CS);
+
+void StepperInit()
+{
+    TMC5160::PowerStageParameters powerStageParams;
+    TMC5160::MotorParameters motorParams;
+    motorParams.globalScaler = 98;
+    motorParams.irun = 25;
+    motorParams.ihold = 4;
+
+    motor.begin(powerStageParams, motorParams, TMC5160::INVERSE_MOTOR_DIRECTION);
+    motor.setRampMode(TMC5160::POSITIONING_MODE);
+    motor.setMaxSpeed(8000);
+    motor.setAcceleration(8000);
+
+    // motor.setTargetPosition(20000);
+    // delay(1000);
+
+    // motor.setTargetPosition(0);
+    // delay(1000);
+
+    Serial.println("Stepper Initialized");
+    delay(1000);
+    // motor.setTargetPosition(100000);
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    Serial.println("Initializing System...");
+    SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
+    pinMode(EN_PIN, OUTPUT);
+    // digitalWrite(EN_PIN, LOW);
+
+    StepperInit();
+
+    // while (true) {
+    //   Serial.println("Running Main Loop...");
+    //   // Your main loop code here
+    //   delay(1000); // Adjust the delay as needed
+    // }
+}
+
+void loop()
+{
+    for (int i = 0; i < 100; i++)
+    {
+        motor.setTargetPosition(motor.getCurrentPosition() + 50);
+        delay(100);
+        Serial.print("Rotate Forward ");
+        Serial.println(i);
+    }
+    delay(2000);
+    for (int i = 0; i < 100; i++)
+    {
+        motor.setTargetPosition(motor.getCurrentPosition() - 50);
+        delay(100);
+        Serial.print("Rotate Reverse ");
+        Serial.println(i);
+    }
+
+    delay(2000);
+    Serial.println("Cycle Completed");
+}
