@@ -1,0 +1,112 @@
+#include <Arduino.h>
+#include <TMCStepper.h>
+#include <SPI.h>
+
+// ---------------- PIN CONFIG ----------------
+#define EN_PIN     6
+#define CS_PIN     10
+#define MOSI_PIN   11
+#define MISO_PIN   13
+#define SCK_PIN    12
+
+#define STEP_PIN   2
+#define DIR_PIN    3
+
+#define R_SENSE 0.075f   // ⚠️ SET THIS CORRECTLY (very important)
+
+// ---------------- DRIVER ----------------
+TMC5160Stepper driver = TMC5160Stepper(CS_PIN, R_SENSE);
+
+// ---------------- STEP FUNCTION ----------------
+void stepMotor(int steps, bool dir)
+{
+    digitalWrite(DIR_PIN, dir);
+
+    for (int i = 0; i < steps; i++)
+    {
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(5);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(5);
+    }
+}
+
+// ---------------- INIT ----------------
+void StepperInit()
+{
+    driver.begin();
+    driver.toff(5);              // Enable driver
+    driver.blank_time(24);
+
+    driver.rms_current(800);     // mA (adjust for your motor)
+    driver.microsteps(16);
+
+    driver.en_pwm_mode(true);    // StealthChop (quiet)
+    driver.pwm_autoscale(true);
+
+    // -------- StallGuard --------
+    driver.TCOOLTHRS(500);
+    driver.sg_stall_value(10);
+
+    // -------- CoolStep --------
+    driver.semin(5);
+    driver.semax(3);
+    driver.sedn(1);
+    driver.seup(2);
+
+    Serial.println("Stepper Initialized with TMCStepper");
+}
+
+// ---------------- SETUP ----------------
+void setup()
+{
+    Serial.begin(115200);
+    Serial.println("Initializing System...");
+
+    SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN);
+
+    pinMode(EN_PIN, OUTPUT);
+    pinMode(STEP_PIN, OUTPUT);
+    pinMode(DIR_PIN, OUTPUT);
+
+    digitalWrite(EN_PIN, LOW);  // Enable driver
+
+    StepperInit();
+}
+
+// ---------------- LOOP ----------------
+void loop()
+{
+    // -------- FORWARD --------
+    for (int i = 0; i < 100; i++)
+    {
+        stepMotor(50, HIGH);
+
+        int load = driver.sg_result();  // StallGuard load
+        Serial.print("Forward ");
+        Serial.print(i);
+        Serial.print(" Load: ");
+        Serial.println(load);
+
+        delay(100);
+    }
+
+    delay(2000);
+
+    // -------- REVERSE --------
+    for (int i = 0; i < 100; i++)
+    {
+        stepMotor(50, LOW);
+
+        int load = driver.sg_result();
+        Serial.print("Reverse ");
+        Serial.print(i);
+        Serial.print(" Load: ");
+        Serial.println(load);
+
+        delay(100);
+    }
+
+    delay(2000);
+    Serial.println("Cycle Completed");
+}
