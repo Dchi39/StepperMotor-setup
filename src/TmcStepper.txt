@@ -1,0 +1,78 @@
+#include <Arduino.h>
+#include <TMCStepper.h>
+#include <SPI.h>
+
+#define EN_PIN     6
+#define CS_PIN     10
+#define MOSI_PIN   11
+#define MISO_PIN   13
+#define SCK_PIN    12
+
+#define R_SENSE 0.075f
+
+TMC5160Stepper driver = TMC5160Stepper(CS_PIN, R_SENSE);
+
+void monitorLoad();
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Init TMC5160...");
+
+  pinMode(EN_PIN, OUTPUT);
+  digitalWrite(EN_PIN, LOW);
+
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN);
+
+  driver.begin();
+
+  driver.toff(5);
+  driver.blank_time(24);
+  driver.rms_current(800);
+  driver.microsteps(16);
+
+  driver.en_pwm_mode(true);
+  driver.pwm_autoscale(true);
+
+  driver.shaft(false);
+
+  // Velocity mode
+  driver.RAMPMODE(1);
+  driver.AMAX(1000);
+
+  // === StallGuard (FIXED FOR YOUR LIB) ===
+  driver.TCOOLTHRS(0xFFFFF);
+  driver.sgt(10);   // 🔥 correct for your version
+
+  Serial.println("Driver Ready");
+  delay(1000);
+}
+
+void loop() {
+
+  Serial.println("Forward...");
+  driver.VMAX(20000);
+  monitorLoad();
+  delay(5000);
+
+  Serial.println("Stop...");
+  driver.VMAX(0);
+  delay(2000);
+
+  Serial.println("Reverse...");
+  driver.shaft(!driver.shaft());
+  driver.VMAX(20000);
+  monitorLoad();
+  delay(5000);
+
+  driver.VMAX(0);
+  delay(2000);
+}
+
+void monitorLoad() {
+  for (int i = 0; i < 50; i++) {
+    int load = driver.sg_result();   // 🔥 correct for your version
+    Serial.print("Load: ");
+    Serial.println(load);
+    delay(200);
+  }
+}
